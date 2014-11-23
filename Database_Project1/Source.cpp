@@ -16,12 +16,11 @@ void InsertForName_tableAnditem(name_tableAnditem& input, string express);
 
 
 
-
 typedef map<string, map<string, vector<string>>> tables;
-vector<name_tableAnditem> item_ShouldBeShow;
-
-
+void OrderBy(tables & allData, name_tableAnditem item, vector<name_tableAnditem> prev_order, string ASCorDESC);
+void Tables_Output(tables &input);
 typedef map<string, vector<string>> items;
+void readTableText(string name, tables & input_Table);
 		
 
 bool allItem_ShouldBeShow=false;
@@ -29,22 +28,18 @@ bool isDistinct=false;
 map<string, string> asforTable;
 map<string, name_tableAnditem> asforItem;//TODO
 vector<name_tableAnditem> item_Count;
-
-string firstTableName;
-bool isHavingFirstName;
-void Tables_Output(tables &input);
+vector<name_tableAnditem> item_ShouldBeShow;
+//// ///////////////////////////////////////////////////////////////////////////////////////////
 void Select(tables &allData, string str_Select);
 tables Process_From(vector<string> input);
 void Join(tables &inputA, tables &inputB, string express, bool isInner);
-void readTableText(string name, map<string, map<string, vector<string>>> & input_Table);
 void InnerJoin_Process(vector<string> inputStrings, tables &outputTables);
-
+//// ///////////////////////////////////////////////////////////////////////////////////////////
 void getAllSign(vector<string> &allSign, string tempStr);
 bool mathCalculate(vector<string> &mathStack, tables &allData);
 bool logicCalculate(vector<string> &logicStack);
 bool calculate(vector<string> &allSign, tables &allData, int row);
 
-void OrderBy(tables & allData, name_tableAnditem item, vector<name_tableAnditem> prev_order, string ASCorDESC);
 
 
 void Select(tables &allData, string str_Input)
