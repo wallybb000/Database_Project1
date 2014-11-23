@@ -1,0 +1,1 @@
+SELECT a.OrderID FROM (a INNER JOIN b ON a.OrderID = b.OrderID ) INNER JOIN c ON a.ShipperID = c.ShipperID WHERE NOT a.OrderID == 10249  ORDER BY a.OrderID ASC,b.OrderDetailID ASC ;
