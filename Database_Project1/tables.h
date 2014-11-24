@@ -13,7 +13,9 @@ public:
 	string item;
 	int use = 0;
 	int count = 0;
-	
+	itemAttribute()
+	{
+	}
 	itemAttribute(string express)
 	{
 		int pos = express.find(".");
@@ -32,14 +34,14 @@ public:
 
 typedef map<string, map<string, vector<string>>>tableSet;
 typedef map<string, vector<string>> itemSet;
-class table
+class tables
 {
 private:
 
 tableSet _data;
 
 public:
-	inline itemSet& operator[] (string & tableName)
+	itemSet& operator[] (const string & tableName)
 	{
 		return _data.at(tableName);
 	}
@@ -48,12 +50,15 @@ public:
 		return _data.size();
 	}
 	void OrderBy(itemAttribute item, vector<itemAttribute> prev_order, string ASCorDESC);
-
+	tableSet& getData()
+	{
+		return _data;
+	}
 	void readTableText(string name);
 	void Tables_Output();
-
+	void insert(string name, itemSet itemS);
 };
-void table::readTableText(string name)
+void tables::readTableText(string name)
 {
 	ifstream inputFile(name + ".txt");
 	string inputString;
@@ -88,7 +93,7 @@ void table::readTableText(string name)
 
 }
 
-void table::OrderBy(itemAttribute item, vector<itemAttribute> prev_order, string ASCorDESC)
+void tables::OrderBy(itemAttribute item, vector<itemAttribute> prev_order, string ASCorDESC)
 {
 
 	
@@ -137,4 +142,8 @@ void table::OrderBy(itemAttribute item, vector<itemAttribute> prev_order, string
 		}
 	}
 
+}
+void tables::insert(string name, itemSet itemS)
+{
+	_data.insert(pair<string, itemSet>(name, itemS));
 }

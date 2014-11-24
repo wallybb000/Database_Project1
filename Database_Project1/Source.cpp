@@ -4,31 +4,19 @@
 #include <fstream>
 #include <regex>
 #include <map>
+#include "tables.h"
 using namespace std;
 
-struct name_tableAnditem{
-	string table;
-	string item;
-	int use = 0;
-	int count = 0;
-};
-void InsertForName_tableAnditem(name_tableAnditem& input, string express);
 
-
-
-typedef map<string, map<string, vector<string>>> tables;
-void OrderBy(tables & allData, name_tableAnditem item, vector<name_tableAnditem> prev_order, string ASCorDESC);
-void Tables_Output(tables &input);
 typedef map<string, vector<string>> items;
-void readTableText(string name, tables & input_Table);
 		
 
 bool allItem_ShouldBeShow=false;
 bool isDistinct=false;
 map<string, string> asforTable;
-map<string, name_tableAnditem> asforItem;//TODO
-vector<name_tableAnditem> item_Count;
-vector<name_tableAnditem> item_ShouldBeShow;
+map<string, itemAttribute> asforItem;//TODO
+vector<itemAttribute> item_Count;
+vector<itemAttribute> item_ShouldBeShow;
 //// ///////////////////////////////////////////////////////////////////////////////////////////
 void Select(tables &allData, string str_Select);
 tables Process_From(vector<string> input);
@@ -109,9 +97,7 @@ void Select(tables &allData, string str_Input)
 		if (each_Item[0].compare("COUNT") == 0)
 		{
 
-			name_tableAnditem temp;
-
-			InsertForName_tableAnditem(temp, each_Item[1]);
+			itemAttribute temp(each_Item[1]);
 			if (each_Item[1].compare("DISTINCT")==0)
 			temp.use = 2;
 			else
@@ -120,7 +106,7 @@ void Select(tables &allData, string str_Input)
 			item_ShouldBeShow.push_back(temp);
 			if (each_Item.size() >3 )
 			{
-				asforItem.insert(pair<string, name_tableAnditem>(each_Item[each_Item.size()-1], temp)); //加入新名庫
+				asforItem.insert(pair<string, itemAttribute>(each_Item[each_Item.size()-1], temp)); //加入新名庫
 			}
 			//TODO 建置count庫
 			item_Count.push_back(temp);
@@ -129,14 +115,13 @@ void Select(tables &allData, string str_Input)
 		else if (each_Item[0].compare("DISTINCT") == 0)
 		{
 			isDistinct = true;
-			name_tableAnditem temp;
-			InsertForName_tableAnditem(temp, each_Item[1]);
+			itemAttribute temp(each_Item[1]);
 			temp.use = 3;
 
 			item_ShouldBeShow.push_back(temp);
 			if (each_Item.size() > 2)
 			{
-				asforItem.insert(pair<string, name_tableAnditem>(each_Item[3], temp)); //加入新名庫
+				asforItem.insert(pair<string, itemAttribute>(each_Item[3], temp)); //加入新名庫
 			}
 
 		}
@@ -145,18 +130,17 @@ void Select(tables &allData, string str_Input)
 
 			if (each_Item[0].compare("*") == 0){
 				allItem_ShouldBeShow = true;
-				name_tableAnditem temp;
+				itemAttribute temp;
 				temp.item = "*";
 				item_ShouldBeShow.push_back(temp);
 			}
 			else
 			{
-				name_tableAnditem temp;
-				InsertForName_tableAnditem(temp, each_Item[0]);
+				itemAttribute temp(each_Item[0]);
 				item_ShouldBeShow.push_back(temp);
 
 				if (each_Item.size() > 1 && each_Item[1].compare("AS") == 0)
-					asforItem.insert(pair<string, name_tableAnditem>(each_Item[2], temp)); //加入新名庫
+					asforItem.insert(pair<string, itemAttribute>(each_Item[2], temp)); //加入新名庫
 			}
 		}
 
@@ -184,14 +168,14 @@ void Select(tables &allData, string str_Input)
 		if (str_From.size() == 1)
 		{
 			tables temp;
-			readTableText(str_From[0], temp);
+			temp.readTableText(str_From[0]);
 			allTables.push_back(temp);
 
 		}
 		else if (str_From.size() == 3)
 		{
 			tables temp;
-			readTableText(str_From[0], temp);
+			temp.readTableText(str_From[0]);
 			allTables.push_back(temp);
 
 			asforTable.insert(pair<string,string>(str_From[2], str_From[0]));// 將新名加入新名庫
@@ -215,7 +199,7 @@ void Select(tables &allData, string str_Input)
 			Join(allTables[i], allTables[0], str, false);
 		
 		}
-
+		
 	}
 
 	allData = allTables[0];
@@ -225,14 +209,14 @@ void Select(tables &allData, string str_Input)
 	if (!allStr_Where.empty())
 	{
 		tables temp_allData;
-		for (tables::iterator it_T = allData.begin(); it_T != allData.end(); it_T++)
+		for (tableSet::iterator it_T = allData.getData().begin(); it_T != allData.getData().end(); it_T++)
 		{
-			temp_allData.insert(pair<string, items>(it_T->first,items()));
+			temp_allData.insert(it_T->first,items());
 			for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 				temp_allData[it_T->first].insert(pair<string, vector<string>>(it_I->first, vector<string>()));
 		}
 		
-		for (tables::iterator it_T = allData.begin(); it_T != allData.end(); it_T++)
+		for (tableSet::iterator it_T = allData.getData().begin(); it_T != allData.getData().end(); it_T++)
 		{
 			for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 				temp_allData[it_T->first][it_I->first].push_back( it_I->second[0]);
@@ -240,13 +224,13 @@ void Select(tables &allData, string str_Input)
 		
 		vector<string> allSign;
 		getAllSign(allSign, allStr_Where);
-		int rows = allData.begin()->second.begin()->second.size();
+		int rows = allData.getData().begin()->second.begin()->second.size();
 
 		for (int row = 1; row < rows; row++)
 		{
 			if (calculate(allSign, allData, row))
 			{
-				for (tables::iterator it_T = temp_allData.begin(); it_T != temp_allData.end(); it_T++)
+				for (tableSet::iterator it_T = temp_allData.getData().begin(); it_T != temp_allData.getData().end(); it_T++)
 				for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 				{
 					it_I->second.push_back(allData[it_T->first][it_I->first][row]);
@@ -268,7 +252,7 @@ void Select(tables &allData, string str_Input)
 	{
 		e.assign("([^\\s,]+\\s[^\\s,]+|[^\\s,]+)");
 		vector<string> each_order;
-		vector<name_tableAnditem> prev_order;
+		vector<itemAttribute> prev_order;
 		while (regex_search(allStr_Order, sm, e, regex_constants::match_not_null))
 		{
 			each_order.push_back(sm[1]);
@@ -286,16 +270,14 @@ void Select(tables &allData, string str_Input)
 
 			if (item_order.size() == 1)
 			{
-				name_tableAnditem temp;
-				InsertForName_tableAnditem(temp, item_order[0]);
-				OrderBy(allData, temp, prev_order, "ASC");
+				itemAttribute temp(item_order[0]);
+				allData.OrderBy(temp, prev_order, "ASC");
 				prev_order.push_back(temp);
 			}
 			else 
 			{
-				name_tableAnditem temp;
-				InsertForName_tableAnditem(temp, item_order[0]);
-				OrderBy(allData, temp, prev_order, item_order[1]);
+				itemAttribute temp(item_order[0]);
+				allData.OrderBy(temp, prev_order,"ASC" );
 				prev_order.push_back(temp);
 			}
 
@@ -313,7 +295,7 @@ void Select(tables &allData, string str_Input)
 
 
 		map<string, string> is_Having;
-		int rows = allData.begin()->second.begin()->second.size();
+		int rows = allData.getData().begin()->second.begin()->second.size();
 		for (int j = 0; j < rows; j++)
 		{
 			if (is_Having.find(allData[item_Count[i].table][item_Count[i].item][j]) == is_Having.end())
@@ -341,7 +323,7 @@ void Select(tables &allData, string str_Input)
 	{
 		string as;
 		result.push_back(vector<string>());
-		for (map<string, name_tableAnditem>::iterator it = asforItem.begin(); it != asforItem.end(); it++)
+		for (map<string, itemAttribute>::iterator it = asforItem.begin(); it != asforItem.end(); it++)
 		{
 			if (it->second.table.compare(item_ShouldBeShow[i].table) == 0 &&
 				it->second.item.compare(item_ShouldBeShow[i].item) == 0)
@@ -362,7 +344,7 @@ void Select(tables &allData, string str_Input)
 	if (item_Count.empty ())//若沒count
 	{
 		if (allItem_ShouldBeShow)
-			Tables_Output(allData);
+			allData.Tables_Output();
 		else
 		{
 
@@ -370,7 +352,7 @@ void Select(tables &allData, string str_Input)
 			{
 				for (int i = 0; i < item_ShouldBeShow.size(); i++)
 				{
-					int rows = allData.begin()->second.begin()->second.size();
+					int rows = allData.getData().begin()->second.begin()->second.size();
 					for (int j = 1; j < rows; j++)
 						result[i].push_back(allData[item_ShouldBeShow[i].table][item_ShouldBeShow[i].item][j]);
 				}
@@ -378,7 +360,7 @@ void Select(tables &allData, string str_Input)
 			else
 			{
 
-				int rows = allData.begin()->second.begin()->second.size();
+				int rows = allData.getData().begin()->second.begin()->second.size();
 
 				for (int j = 1; j < rows; j++)
 				{
@@ -412,7 +394,7 @@ void Select(tables &allData, string str_Input)
 		int count = 0;
 		for (int i = 0; i < item_ShouldBeShow.size(); i++)
 		{
-			int rows = allData.begin()->second.begin()->second.size();
+			int rows = allData.getData().begin()->second.begin()->second.size();
 			if (item_ShouldBeShow[i].use == 0)
 			{
 				result[i].push_back(allData[item_ShouldBeShow[i].table][item_ShouldBeShow[i].item][rows]);
@@ -438,60 +420,11 @@ void Select(tables &allData, string str_Input)
 	}
 };
 
-void OrderBy(tables & allData, name_tableAnditem item, vector<name_tableAnditem> prev_order, string ASCorDESC)
-{
-	
-	int ASC_or_DESC = 0;
-	if (ASCorDESC.compare("DESC") == 0)ASC_or_DESC = 1;
-
-
-	int rows = allData.begin()->second.begin()->second.size();
-
-	for (int row1 = 1; row1 < rows-1; row1++)
-	for (int row2 = row1+1; row2 < rows; row2++)
-	{
-		bool shouldSwap = false;
-
-		if (allData[item.table][item.item][0].compare("int")==0)
-		{
-			if (stoi(allData[item.table][item.item][row1])>stoi(allData[item.table][item.item][row2]))
-				shouldSwap = (ASC_or_DESC==0?true:false);
-			else
-				shouldSwap = (ASC_or_DESC == 1 ? true : false);
-		}
-		else
-		{
-			if (allData[item.table][item.item][row1].compare(allData[item.table][item.item][row2])>=0)
-				shouldSwap = (ASC_or_DESC == 0 ? true : false);
-			else
-				shouldSwap = (ASC_or_DESC == 1 ? true : false);
-		}
-
-		for (int j = 0; j < prev_order.size();j++)
-		if (allData[prev_order[j].table][prev_order[j].item][row1].compare(allData[prev_order[j].table][prev_order[j].item][row2]) != 0)
-		{
-			shouldSwap = false;
-			break;
-		}
-
-
-		if (shouldSwap)
-		for (tables::iterator it_T = allData.begin(); it_T != allData.end(); it_T++)
-		for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
-		{
-			string temp;
-			temp = it_I->second[row1];
-			it_I->second[row1] = it_I->second[row2];
-			it_I->second[row2] = temp;
-		}
-	}
-
-}
 
 
 
 
-void InsertForName_tableAnditem(name_tableAnditem& input, string express)
+void InsertForName_tableAnditem(itemAttribute& input, string express)
 {
 	int pos = express.find(".");
 	if (pos != string::npos)
@@ -555,20 +488,20 @@ void InnerJoin_Process(vector<string> inputStrings ,tables &outputTables)
 					if (flag_RecordStrings==1)
 						InnerJoin_Process(recordStrings, processingQuene[0]);
 					else
-						readTableText(inputStrings[i], processingQuene[0]);
+						processingQuene[0].readTableText(inputStrings[i]);
 					break;
 				case 1:
-					processingQuene[0].insert(pair<string, items>(inputStrings[i], processingQuene[0][inputStrings[i - 2]]));//加入新名,並連至原本名字之items(目標table)
+					processingQuene[0].insert(inputStrings[i], processingQuene[0][inputStrings[i - 2]]);//加入新名,並連至原本名字之items(目標table)
 					asforTable.insert(pair<string, string>(inputStrings[i - 2], inputStrings[i])); //將新名加入新名庫
 					break;
 				case 2:
 					if (flag_RecordStrings == 1)
 						InnerJoin_Process(recordStrings, processingQuene[1]);
 					else
-						readTableText(inputStrings[i], processingQuene[1]);
+						processingQuene[1].readTableText(inputStrings[i]);
 					break;
 				case 3:
-					processingQuene[1].insert(pair<string, items>(inputStrings[i], processingQuene[1][inputStrings[i - 2]]));
+					processingQuene[1].insert(inputStrings[i], processingQuene[1][inputStrings[i - 2]]);
 					asforTable.insert(pair<string, string>(inputStrings[i - 2], inputStrings[i]));
 					break;
 				case 4:
@@ -615,13 +548,13 @@ void Join(tables &inputA, tables &inputB, string express ,bool isInner)
 				{
 					if (count < 2)
 					{
-						for (tables::iterator it_T = inputA.begin(); it_T != inputA.end(); ++it_T)
+						for (tableSet::iterator it_T = inputA.getData().begin(); it_T != inputA.getData().end(); ++it_T)
 						if (it_T->second.find(sm[1]) != it_T->second.end())
 							express_Item[count - 1] = it_T->first;
 					}
 					else
 					{
-						for (tables::iterator it_T = inputB.begin(); it_T != inputB.end(); ++it_T)
+						for (tableSet::iterator it_T = inputB.getData().begin(); it_T != inputB.getData().end(); ++it_T)
 						if (it_T->second.find(sm[1]) != it_T->second.end())
 							express_Item[count - 1] = it_T->first;
 					}
@@ -650,8 +583,8 @@ void Join(tables &inputA, tables &inputB, string express ,bool isInner)
 	int B_count = 1;
 
 	tables tempTable;
-	for (tables::iterator it_T = inputB.begin(); it_T != inputB.end(); ++it_T){
-		tempTable.insert(pair<string, items>(it_T->first, items()));
+	for (tableSet::iterator it_T = inputB.getData().begin(); it_T != inputB.getData().end(); ++it_T){
+		tempTable.insert(it_T->first, items());
 		
 		for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); ++it_I)
 		{
@@ -662,8 +595,8 @@ void Join(tables &inputA, tables &inputB, string express ,bool isInner)
 		}
 	}
 	
-	for (tables::iterator it_T = inputA.begin(); it_T != inputA.end(); it_T++){
-		tempTable.insert(pair<string, items>(it_T->first, items()));
+	for (tableSet::iterator it_T = inputA.getData().begin(); it_T != inputA.getData().end(); it_T++){
+		tempTable.insert(it_T->first, items());
 		for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 		{
 			
@@ -675,20 +608,20 @@ void Join(tables &inputA, tables &inputB, string express ,bool isInner)
 
 	
 
-	for (B_count = 1; B_count < inputB.begin()->second.begin()->second.size(); B_count++)
-	for (A_count = 1; A_count < inputA.begin()->second.begin()->second.size(); A_count++)
+	for (B_count = 1; B_count < inputB.getData().begin()->second.begin()->second.size(); B_count++)
+	for (A_count = 1; A_count < inputA.getData().begin()->second.begin()->second.size(); A_count++)
 	{
 
 		string L, R;
 		//將input之table 存入L,R 若相反者亦可
 		
 		if (isInner)
-			if (inputA.find(express_Item[0]) != inputA.end())
+			if (inputA.getData().find(express_Item[0]) != inputA.getData().end())
 			{
 				L = inputA[express_Item[0]][express_Item[1]][A_count];
 				R = inputB[express_Item[2]][express_Item[3]][B_count];
 			}
-			else if (inputB.find(express_Item[0]) != inputB.end())
+			else if (inputB.getData().find(express_Item[0]) != inputB.getData().end())
 			{
 				L = inputB[express_Item[0]][express_Item[1]][A_count];
 				R = inputA[express_Item[2]][express_Item[3]][B_count];
@@ -699,20 +632,20 @@ void Join(tables &inputA, tables &inputB, string express ,bool isInner)
 		if (!isInner || L.compare(R) == 0)
 		{
 			//插入B之列
-			for (tables::iterator it_T = tempTable.begin(); it_T != tempTable.end(); it_T++){
+			for (tableSet::iterator it_T = tempTable.getData().begin(); it_T != tempTable.getData().end(); it_T++){
 				for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 				{
 	
-					if (inputB.find(it_T->first)!=inputB.end())
+					if (inputB.getData().find(it_T->first)!=inputB.getData().end())
 						it_I->second.push_back(inputB[it_T->first][it_I->first][B_count]);
-					else if (inputA.find(it_T->first) != inputA.end())
+					else if (inputA.getData().find(it_T->first) != inputA.getData().end())
 						it_I->second.push_back(inputA[it_T->first][it_I->first][A_count]);
 				}
 			}
 		}
 	}
 
-	inputB.clear();
+	inputB.getData().clear();
 	
 	inputB = tempTable;
 
@@ -805,16 +738,16 @@ void Tables_Output(tables &input)
 {
 
 
-	for (tables::iterator it_T = input.begin(); it_T != input.end(); it_T++)
+	for (tableSet::iterator it_T = input.getData().begin(); it_T != input.getData().end(); it_T++)
 	{
 		for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 			cout << it_I->first << "\t";
 		
 	}
 	cout << endl;
-	int rows = input.begin()->second.begin()->second.size();
+	int rows = input.getData().begin()->second.begin()->second.size();
 	for (int i = 0; i < rows; i++){
-		for (tables::iterator it_T = input.begin(); it_T != input.end(); it_T++)
+		for (tableSet::iterator it_T = input.getData().begin(); it_T != input.getData().end(); it_T++)
 		{
 			for (items::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
 				cout << it_I->second[i] << "\t";
@@ -973,9 +906,9 @@ bool calculate(vector<string> &allSign, tables &allData, int row)
 			}
 			else
 			{
-				name_tableAnditem temp;
+				itemAttribute temp;
 				InsertForName_tableAnditem(temp, allSign[i]);
-				if (allData.find(temp.table) != allData.end() && allData[temp.table].find(temp.item) != allData[temp.table].end())
+				if (allData.getData().find(temp.table) != allData.getData().end() && allData[temp.table].find(temp.item) != allData[temp.table].end())
 				{
 					if (mathStack.size() == 0)
 					{
