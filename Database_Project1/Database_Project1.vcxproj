@@ -70,6 +70,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp" />
+    <ClCompile Include="table.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tables.h" />
