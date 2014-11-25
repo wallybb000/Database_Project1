@@ -12,6 +12,7 @@ void tables::readTableText(string name)
 	string inputString;
 	smatch sm;
 	regex e("([^\\s]+)");
+	
 
 	this->_data.insert(pair<string, itemSet>(name, itemSet()));
 	
@@ -26,6 +27,7 @@ void tables::readTableText(string name)
 			{
 				itemName.push_back(sm[1]);
 				this->_data[name].insert(pair<string, vector<string>>(sm[1], vector<string>()));
+				this->_itemNameArray.push_back(itemAttribute(name,sm[1]));
 			}
 			else
 			{
@@ -91,7 +93,7 @@ void tables::OrderBy(itemAttribute item, vector<itemAttribute> prev_order, strin
 	}
 
 }
-void tables::insert(string name, itemSet itemS)
+void tables::insert(const string &name, itemSet itemS)
 {
 	_data.insert(pair<string, itemSet>(name, itemS));
 }
@@ -116,3 +118,123 @@ void tables::Tables_Output()
 	}
 
 }
+void tables::join( tables &input, string express ,bool isInner)
+{
+	string express_Item[4];
+	bool flag=false;
+	int count = 0;
+	if (isInner)
+	{
+		smatch sm;
+		regex e("(\\.|=|\\w+)");
+		while (regex_search(express, sm, e, regex_constants::match_not_null))
+		{
+			if (sm[1].compare(".") == 0)
+			{
+				if (!flag)
+				{
+					if (count < 2)
+					{
+						for (tableSet::iterator it_T = input.getData().begin(); it_T != input.getData().end(); ++it_T)
+						if (it_T->second.find(sm[1]) != it_T->second.end())
+							express_Item[count - 1] = it_T->first;
+					}
+					else
+					{
+						for (tableSet::iterator it_T = this->_data.begin(); it_T != this->_data.end(); ++it_T)
+						if (it_T->second.find(sm[1]) != it_T->second.end())
+							express_Item[count - 1] = it_T->first;
+					}
+
+				}
+				else
+					flag = false;
+			}
+			else if (sm[1].compare("=") == 0)
+			{
+				count = 2;
+			}
+			else
+			{
+				express_Item[count++] = sm[1];
+				flag = true;
+			}
+
+			express = sm.suffix().str();
+		}
+	}
+	//////////////////////////////////////////////////
+
+	count = 0;
+	int A_count = 1;//避開0 第0項要存放型態
+	int B_count = 1;
+
+	tableSet tempTable;
+	for (tableSet::iterator it_T = this->_data.begin(); it_T != this->_data.end(); ++it_T){
+		tempTable.insert(pair<string,itemSet>(it_T->first, itemSet()));
+		
+		for (itemSet::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); ++it_I)
+		{
+	
+			tempTable[it_T->first].insert(pair<string, vector<string>>(it_I->first, vector<string>()));
+			tempTable[it_T->first][it_I->first].push_back(it_I->second[0]);//將表格中 第0項(型態)存入
+
+		}
+	}
+	
+	for (tableSet::iterator it_T = input.getData().begin(); it_T != input.getData().end(); it_T++){
+		tempTable.insert(pair<string,itemSet>(it_T->first, itemSet()));
+		for (itemSet::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
+		{
+			
+			tempTable[it_T->first].insert(pair<string, vector<string>>(it_I->first, vector<string>()));
+			tempTable[it_T->first][it_I->first].push_back(it_I->second[0]);
+		}
+	}
+
+
+	
+
+	for (B_count = 1; B_count < this->_data.begin()->second.begin()->second.size(); B_count++)
+	for (A_count = 1; A_count < input.getData().begin()->second.begin()->second.size(); A_count++)
+	{
+
+		string L, R;
+		//將input之table 存入L,R 若相反者亦可
+		
+		if (isInner)
+			if (input.getData().find(express_Item[0]) != input.getData().end())
+			{
+				L = input[express_Item[0]][express_Item[1]][A_count];
+				R = this->_data[express_Item[2]][express_Item[3]][B_count];
+			}
+			else if (this->_data.find(express_Item[0]) != this->_data.end())
+			{
+				L = this->_data[express_Item[0]][express_Item[1]][A_count];
+				R = input[express_Item[2]][express_Item[3]][B_count];
+			}
+
+		//判斷條件是否成立,若是則將A與B整列資料存入temp
+	
+		if (!isInner || L.compare(R) == 0)
+		{
+			//插入B之列
+			for (tableSet::iterator it_T = tempTable.begin(); it_T != tempTable.end(); it_T++){
+				for (itemSet::iterator it_I = it_T->second.begin(); it_I != it_T->second.end(); it_I++)
+				{
+	
+					if (this->_data.find(it_T->first)!=this->_data.end())
+						it_I->second.push_back(this->_data[it_T->first][it_I->first][B_count]);
+					else if (input.getData().find(it_T->first) != input.getData().end())
+						it_I->second.push_back(input[it_T->first][it_I->first][A_count]);
+				}
+			}
+		}
+	}
+	for (vector<itemAttribute>::iterator it_v = input._itemNameArray.begin(); it_v != input._itemNameArray.end(); it_v++)
+		this->_itemNameArray.push_back(*it_v);
+	this->_data.clear();
+	this->_data= tempTable;
+
+}
+

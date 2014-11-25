@@ -16,6 +16,10 @@ public:
 	itemAttribute()
 	{
 	}
+	itemAttribute(string nameTable, string nameItem) :table(nameTable), item(nameItem)
+	{
+
+	}
 	itemAttribute(string express)
 	{
 		int pos = express.find(".");
@@ -39,7 +43,7 @@ class tables
 private:
 
 tableSet _data;
-
+vector<itemAttribute> _itemNameArray;
 public:
 	itemSet& operator[] (const string & tableName)
 	{
@@ -54,7 +58,12 @@ public:
 	{
 		return _data;
 	}
+	vector<itemAttribute> getAttribute()
+	{
+		return _itemNameArray;
+	}
+	void join(tables &input, string express, bool isInner);
 	void readTableText(string name);
 	void Tables_Output();
-	void insert(string name, itemSet itemS);
+	void insert(const string& name, itemSet itemS);
 };
